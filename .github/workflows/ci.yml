@@ -28,9 +28,8 @@ jobs:
           cd backend
           pip install --upgrade pip
           pip install -r requirements.txt
-          pip install python-docx  # needed for test DOCX generation
 
-      - name: Run contract tests
+      - name: Run backend tests
         env:
           DATABASE_URL: sqlite:///test.db
           EMBEDDING_BACKEND: hash

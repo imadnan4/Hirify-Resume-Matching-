@@ -1,0 +1,5 @@
+Experience:
+Built FastAPI billing API for 5 yrs at Acme. Postgres daily, Docker, CI.
+Education:
+BSc CS
+Contact: ada@example.com +1 555 0100
