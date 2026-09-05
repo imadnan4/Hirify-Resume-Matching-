@@ -14,7 +14,7 @@
  "spearman": 1.0,
  "faithfulness": {
   "uncited_claims": 0,
-  "total": 3
+  "total_claims": 8
  },
  "pass_bar": {
   "ndcg@5_bar": 0.75,

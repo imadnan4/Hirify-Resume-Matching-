@@ -60,7 +60,7 @@ def score_with_llm(jd_reqs: list[str], cv_context: str) -> dict:
             messages=messages, tools=[SCORE_TOOL], tool_choice="auto", temperature=0,
         ).choices[0].message
         if msg.tool_calls:
-            return json.loads(msg.tool_calls[0].function.arguments)
+            return _validated(json.loads(msg.tool_calls[0].function.arguments), jd_reqs, cv_context)
     except Exception:
         pass
     try:
@@ -69,9 +69,27 @@ def score_with_llm(jd_reqs: list[str], cv_context: str) -> dict:
             messages=messages + [{"role": "system", "content": "Return ONLY the score_candidate JSON object."}],
             response_format={"type": "json_object"}, temperature=0,
         ).choices[0].message.content or "{}"
-        return json.loads(txt)
+        return _validated(json.loads(txt), jd_reqs, cv_context)
     except Exception:
         return _fixture(jd_reqs, cv_context)
+
+
+def _validated(raw: object, jd_reqs: list[str], cv_context: str) -> dict:
+    """Gateway output is best-effort: malformed payloads fall back to the fixture."""
+    if not isinstance(raw, dict):
+        return _fixture(jd_reqs, cv_context)
+    for key in ("overall", "skills_match", "experience", "project_impact", "education", "cv_clarity"):
+        if not isinstance(raw.get(key), (int, float)) or isinstance(raw.get(key), bool):
+            return _fixture(jd_reqs, cv_context)
+    if not isinstance(raw.get("evidence", []), list):
+        return _fixture(jd_reqs, cv_context)
+    for item in raw.get("evidence", []):
+        if not isinstance(item, dict) or not isinstance(item.get("quote"), str):
+            return _fixture(jd_reqs, cv_context)
+    tags = raw.get("tags", [])
+    if not isinstance(tags, list) or any(not isinstance(t, str) for t in tags):
+        return _fixture(jd_reqs, cv_context)
+    return raw
 
 
 def _fixture(jd_reqs: list[str], cv_context: str) -> dict:

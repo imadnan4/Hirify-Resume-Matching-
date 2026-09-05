@@ -8,6 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "backend"))
 
 from app.services.llm import score_with_llm  # noqa: E402
+from app.services.redact import redact  # noqa: E402
 from app.services.scoring import apply_rubric  # noqa: E402
 
 
@@ -37,6 +38,12 @@ def spearman(a: list[str], b: list[str]) -> float:
     return 1 - 6 * diff / (n * (n * n - 1))
 
 
+def _quote_in_source(quote: str, source: str) -> bool:
+    """Claim-level check: the quote must appear verbatim (case-insensitive) in the CV."""
+    norm = " ".join(quote.split()).lower()
+    return bool(norm) and norm in " ".join(source.split()).lower()
+
+
 def main() -> None:
     held = ROOT / "data" / "eval" / "heldout"
     labels = json.loads((held / "labels.json").read_text())
@@ -46,13 +53,17 @@ def main() -> None:
 
     scored = []
     uncited = 0
+    total_claims = 0
     for cv_file in sorted((held / "cvs").glob("*.txt")):
         cid = cv_file.stem
-        raw = score_with_llm(jd_reqs, cv_file.read_text())
+        source = cv_file.read_text()
+        raw = score_with_llm(jd_reqs, redact(source))
         final = apply_rubric(raw)
         scored.append((cid, final["overall"]))
-        if not final["evidence"]:
-            uncited += 1
+        for item in final["evidence"]:
+            total_claims += 1
+            if not _quote_in_source(item.get("quote", ""), source):
+                uncited += 1
     scored.sort(key=lambda kv: -kv[1])
     ranked = [c for c, _ in scored]
     relevant = {c for c, g in grades.items() if g >= 4}
@@ -63,7 +74,7 @@ def main() -> None:
         "precision@3": round(precision_at_k(ranked, relevant, 3), 3),
         "ndcg@5": round(ndcg(ranked, grades, 5), 3),
         "spearman": round(spearman(ranked, truth_rank), 3),
-        "faithfulness": {"uncited_claims": uncited, "total": len(scored)},
+        "faithfulness": {"uncited_claims": uncited, "total_claims": total_claims},
         "pass_bar": {"ndcg@5_bar": 0.75, "zero_uncited": True},
         "pass": ndcg(ranked, grades, 5) >= 0.75 and uncited == 0,
     }
@@ -72,7 +83,7 @@ def main() -> None:
     (ROOT / "evals" / "results.md").write_text(
         "# Eval results\n\n"
         + "\n".join(f"- {k}: {v}" for k, v in out.items() if k in ("precision@3", "ndcg@5", "spearman"))
-        + f"\n- uncited: {uncited}/{len(scored)}\n- PASS: {out['pass']}\n"
+        + f"\n- uncited: {uncited}/{total_claims} claims\n- PASS: {out['pass']}\n"
     )
     print(json.dumps(out, indent=1))
 

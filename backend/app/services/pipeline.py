@@ -5,6 +5,7 @@ from app.models.tables import Candidate, Chunk, Job, Score, Tag
 from app.services import embed as embed_mod
 from app.services.chunker import chunk_cv, chunk_jd
 from app.services.llm import score_with_llm
+from app.services.redact import redact
 from app.services.scoring import apply_rubric
 
 TOP_K = 6
@@ -29,29 +30,29 @@ def index_candidate(db: Session, cand: Candidate) -> None:
     db.commit()
 
 
-def _topk(db: Session, job_id: str, cand_id: str, k: int = TOP_K) -> list[Chunk]:
-    chunks = db.query(Chunk).filter(Chunk.job_id == job_id, Chunk.candidate_id == cand_id).all()
-    if not chunks or not all(c.embedding for c in chunks):
+def _topk(chunks: list[Chunk], job_vecs: list[list[float]], k: int = TOP_K) -> list[Chunk]:
+    if not chunks or not all(c.embedding for c in chunks) or not job_vecs:
         return chunks[:k]
-    q = db.query(Chunk).filter(Chunk.job_id == job_id, Chunk.candidate_id == f"job:{job_id}").all()
-    qvecs = [c.embedding for c in q if c.embedding]
-    if not qvecs:
-        return chunks[:k]
-    qv = [sum(col) / len(qvecs) for col in zip(*qvecs)]
+    qv = [sum(col) / len(job_vecs) for col in zip(*job_vecs)]
     scored = sorted(chunks, key=lambda c: -embed_mod.cosine(c.embedding, qv) if c.embedding else 0)
     return scored[:k]
 
 
 def screen_job(db: Session, job_id: str) -> list[dict]:
     job = db.get(Job, job_id)
-    reqs = [c.text for c in db.query(Chunk).filter(
-        Chunk.job_id == job_id, Chunk.candidate_id == f"job:{job_id}").all()]
-    if not reqs:
-        reqs = [job.description]
+    # Batch-load once: job requirement chunks + all candidate chunks grouped in memory.
+    job_chunks = db.query(Chunk).filter(
+        Chunk.job_id == job_id, Chunk.candidate_id == f"job:{job_id}").all()
+    reqs = [c.text for c in job_chunks] or [job.description]
+    job_vecs = [c.embedding for c in job_chunks if c.embedding]
+    by_cand: dict[str, list[Chunk]] = {}
+    for c in db.query(Chunk).filter(
+            Chunk.job_id == job_id, Chunk.candidate_id != f"job:{job_id}").all():
+        by_cand.setdefault(c.candidate_id, []).append(c)
     ranking = []
     for cand in db.query(Candidate).filter(Candidate.job_id == job_id).all():
-        ctx_chunks = _topk(db, job_id, cand.id)
-        ctx = "\n---\n".join(c.text for c in ctx_chunks) or cand.raw_text[:4000]
+        ctx_chunks = _topk(by_cand.get(cand.id, []), job_vecs)
+        ctx = redact("\n---\n".join(c.text for c in ctx_chunks) or cand.raw_text[:4000], cand.name)
         raw = score_with_llm(reqs, ctx)
         final = apply_rubric(raw)
         db.query(Score).filter(Score.job_id == job_id, Score.candidate_id == cand.id).delete()

@@ -1,20 +1,44 @@
-"""REST surface consumed by the frontend agent. See /docs/BACKEND_API.md for examples."""
+"""REST surface consumed by the frontend agent. See README for the endpoint summary."""
+import json
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
-from app.core.db import get_db, init_db
+from app.core.db import get_db
 from app.models.tables import Candidate, InterviewStub, Job, Score, Tag
-from app.schemas.io import CandidateDetail, JobCreate, JobOut, RankRow, ScoreOut
+from app.schemas.io import CandidateDetail, JobCreate, JobOut, RankRow
 from app.services.parser import UnsupportedUpload, parse_upload
 from app.services.pipeline import index_candidate, index_job, screen_job
 from app.services.redact import redact
 
 router = APIRouter()
 
+MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+
+
+async def _read_bounded(f: UploadFile, limit: int = MAX_UPLOAD_BYTES) -> bytes:
+    chunks: list[bytes] = []
+    total = 0
+    while True:
+        piece = await f.read(1024 * 1024)
+        if not piece:
+            break
+        total += len(piece)
+        if total > limit:
+            raise HTTPException(413, f"{f.filename or 'upload'} exceeds {limit // (1024*1024)}MB")
+        chunks.append(piece)
+    return b"".join(chunks)
+
+
+def _display_filename(filename: str, candidate_id: str) -> str:
+    suffix = Path(filename or "").suffix or ".txt"
+    return f"cv-{candidate_id[:6]}{suffix}"
+
 
 @router.post("/jobs", response_model=JobOut)
 def create_job(body: JobCreate, db: Session = Depends(get_db)):
-    init_db()
     job = Job(title=body.title, description=body.description)
     db.add(job)
     db.commit()
@@ -30,7 +54,7 @@ async def upload_candidates(job_id: str, files: list[UploadFile] = File(...), db
         raise HTTPException(404, "job not found")
     ids = []
     for f in files:
-        data = await f.read()
+        data = await _read_bounded(f)
         try:
             text = parse_upload(f.filename or "cv.txt", data)
         except UnsupportedUpload as e:
@@ -72,7 +96,8 @@ def candidate_detail(candidate_id: str, db: Session = Depends(get_db)):
     if s:
         ev = [{"requirement_id": e.get("requirement_id", ""), "quote": redact(e.get("quote", ""), cand.name), "sub": e.get("sub", "")} for e in (s.evidence or [])]
         score = {"overall": s.overall, "subs": s.subs, "evidence": ev, "tags": tags}
-    return {"candidate_id": cand.id, "name": redact(cand.name, cand.name), "filename": cand.filename, "score": score}
+    return {"candidate_id": cand.id, "name": redact(cand.name, cand.name),
+            "filename": _display_filename(cand.filename, cand.id), "score": score}
 
 
 @router.post("/candidates/{candidate_id}/schedule")
@@ -87,11 +112,8 @@ def schedule_stub(candidate_id: str, slot: str, db: Session = Depends(get_db)):
 
 
 @router.get("/eval")
-def eval_latest(db: Session = Depends(get_db)):
-    from pathlib import Path
-    import json
-
-    for p in [Path("evals/results.json"), Path("backend/evals-results.json")]:
-        if p.exists():
-            return json.loads(p.read_text())
+def eval_latest() -> dict:
+    path = _REPO_ROOT / "evals" / "results.json"
+    if path.exists():
+        return json.loads(path.read_text())
     return {"detail": "no eval run yet; run python evals/run.py"}

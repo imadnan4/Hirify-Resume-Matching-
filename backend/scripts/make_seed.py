@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 CVS = {
     "backend": [
-        ("senior_fastapi", "Experience:\nBuilt FastAPI billing API for 5 yrs at Acme. Postgres daily, Docker, CI.\nEducation:\nBSc CS\nContact: ada@example.com +1 555 0100"),
+        ("senior_fastapi", "Experience:\nBuilt FastAPI billing API for 5 yrs at Acme. Postgres daily, Docker, CI.\nEducation:\nBSc CS"),
         ("junior_fastapi", "Experience:\n6 months FastAPI internship, Postgres basics.\nEducation:\nBSc CS"),
         ("designer_ko", "Experience:\nSenior product designer, Figma, no backend.\nEducation:\nBA Design"),
     ],
