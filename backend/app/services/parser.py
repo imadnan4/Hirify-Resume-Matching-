@@ -1,4 +1,5 @@
 """Parse PDF/TXT uploads. pdfplumber primary, pypdf fallback."""
+import sys
 from io import BytesIO
 from pathlib import Path
 
@@ -17,7 +18,8 @@ def parse_upload(filename: str, data: bytes) -> str:
 
             with pdfplumber.open(BytesIO(data)) as pdf:
                 return "\n".join((p.extract_text() or "") for p in pdf.pages).strip()
-        except Exception:
+        except Exception as e:  # noqa: BLE001 — pdfplumber raises varied parse errors; pypdf is the fallback
+            print(f"parser: pdfplumber failed ({e}); trying pypdf", file=sys.stderr)
             from pypdf import PdfReader
 
             reader = PdfReader(BytesIO(data))

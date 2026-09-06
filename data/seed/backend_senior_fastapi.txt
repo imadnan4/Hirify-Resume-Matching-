@@ -1,0 +1,4 @@
+Experience:
+Built FastAPI billing API for 5 yrs at Acme. Postgres daily, Docker, CI.
+Education:
+BSc CS

@@ -1,0 +1,4 @@
+Experience:
+6 months FastAPI internship, Postgres basics.
+Education:
+BSc CS

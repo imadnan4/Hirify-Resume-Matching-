@@ -1,0 +1,24 @@
+{
+ "ranked": [
+  "senior_fastapi",
+  "junior_fastapi",
+  "designer_ko"
+ ],
+ "scores": {
+  "senior_fastapi": 87.5,
+  "junior_fastapi": 66.2,
+  "designer_ko": 23.8
+ },
+ "precision@3": 0.333,
+ "ndcg@5": 1.0,
+ "spearman": 1.0,
+ "faithfulness": {
+  "uncited_claims": 0,
+  "total_claims": 8
+ },
+ "pass_bar": {
+  "ndcg@5_bar": 0.75,
+  "zero_uncited": true
+ },
+ "pass": true
+}

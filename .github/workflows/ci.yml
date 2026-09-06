@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main, empty-base]
+    branches: [main, empty-base, 'feat/**']
 
 permissions:
   contents: read
@@ -28,9 +28,8 @@ jobs:
           cd backend
           pip install --upgrade pip
           pip install -r requirements.txt
-          pip install python-docx  # needed for test DOCX generation
 
-      - name: Run contract tests
+      - name: Run backend tests
         env:
           DATABASE_URL: sqlite:///test.db
           EMBEDDING_BACKEND: hash
@@ -76,3 +75,14 @@ jobs:
         run: |
           cd frontend
           npm run build
+
+  docker-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Build API image
+        run: docker build -f backend/Dockerfile -t hirify-api:ci .
