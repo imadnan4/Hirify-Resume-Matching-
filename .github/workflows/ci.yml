@@ -46,7 +46,13 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Check frontend exists
+        id: check
+        run: |
+          if [ -f frontend/package.json ]; then echo "exists=true" >> "$GITHUB_OUTPUT"; else echo "exists=false" >> "$GITHUB_OUTPUT"; fi
+
       - name: Set up Node.js
+        if: steps.check.outputs.exists == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -54,16 +60,19 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
+        if: steps.check.outputs.exists == 'true'
         run: |
           cd frontend
           npm ci
 
       - name: Type check
+        if: steps.check.outputs.exists == 'true'
         run: |
           cd frontend
           npx tsc --noEmit
 
       - name: Build
+        if: steps.check.outputs.exists == 'true'
         run: |
           cd frontend
           npm run build

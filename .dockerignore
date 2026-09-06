@@ -1,0 +1,9 @@
+# Root-context ignores for `docker build . -f backend/Dockerfile`.
+.env
+backend/.env
+__pycache__/
+*.pyc
+.venv/
+.git/
+node_modules/
+frontend/dist/

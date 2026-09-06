@@ -1,0 +1,4 @@
+# Heavy/optional ML deps for the prod image. CI smoke uses the hash fallback instead.
+# Install with: pip install -r requirements-ml.txt
+numpy==1.26.4
+sentence-transformers==3.3.1

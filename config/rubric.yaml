@@ -1,0 +1,10 @@
+skills_match: 35
+experience: 30
+project_impact: 20
+education: 5
+cv_clarity: 10
+ko_cap: 40
+knockouts:
+  - missing_work_auth
+  - below_min_years
+  - missing_required_credential
