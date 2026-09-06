@@ -41,3 +41,22 @@ class CandidateDetail(BaseModel):
     name: str
     filename: str = ""
     score: ScoreOut | None = None
+
+
+class UploadOut(BaseModel):
+    candidate_ids: list[str] = Field(default_factory=list)
+
+
+class ScreenRow(BaseModel):
+    candidate_id: str
+    overall: float
+    tags: list[str] = Field(default_factory=list)
+
+
+class ScreenOut(BaseModel):
+    ranking: list[ScreenRow] = Field(default_factory=list)
+
+
+class ScheduleOut(BaseModel):
+    ok: bool = True
+    slot: str

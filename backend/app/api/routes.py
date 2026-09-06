@@ -1,28 +1,36 @@
-"""REST surface consumed by the frontend agent. See README for the endpoint summary."""
+"""Screening API. Sync path operations (blocking SQLAlchemy/LLM calls run in the threadpool)."""
 import json
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, File, HTTPException, UploadFile
 
-from app.core.db import get_db
+from app.api.deps import DbSession
 from app.models.tables import Candidate, InterviewStub, Job, Score, Tag
-from app.schemas.io import CandidateDetail, JobCreate, JobOut, RankRow
+from app.schemas.io import (
+    CandidateDetail,
+    JobCreate,
+    JobOut,
+    RankRow,
+    ScheduleOut,
+    ScreenOut,
+    UploadOut,
+)
 from app.services.parser import UnsupportedUpload, parse_upload
 from app.services.pipeline import index_candidate, index_job, screen_job
 from app.services.redact import redact
 
-router = APIRouter()
+router = APIRouter(tags=["screening"])
 
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+_CHUNK = 1024 * 1024
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
-async def _read_bounded(f: UploadFile, limit: int = MAX_UPLOAD_BYTES) -> bytes:
+def _read_bounded(f: UploadFile, limit: int = MAX_UPLOAD_BYTES) -> bytes:
     chunks: list[bytes] = []
     total = 0
     while True:
-        piece = await f.read(1024 * 1024)
+        piece = f.file.read(_CHUNK)
         if not piece:
             break
         total += len(piece)
@@ -38,23 +46,25 @@ def _display_filename(filename: str, candidate_id: str) -> str:
 
 
 @router.post("/jobs", response_model=JobOut)
-def create_job(body: JobCreate, db: Session = Depends(get_db)):
+def create_job(body: JobCreate, db: DbSession) -> JobOut:
     job = Job(title=body.title, description=body.description)
     db.add(job)
     db.commit()
     db.refresh(job)
     index_job(db, job)
-    return {"id": job.id, "title": job.title}
+    return JobOut(id=job.id, title=job.title)
 
 
-@router.post("/jobs/{job_id}/candidates:upload")
-async def upload_candidates(job_id: str, files: list[UploadFile] = File(...), db: Session = Depends(get_db)):
+@router.post("/jobs/{job_id}/candidates:upload", response_model=UploadOut)
+def upload_candidates(
+    job_id: str, db: DbSession, files: list[UploadFile] = File(...)  # noqa: B008 — idiomatic FastAPI
+) -> UploadOut:
     job = db.get(Job, job_id)
     if not job:
         raise HTTPException(404, "job not found")
     ids = []
     for f in files:
-        data = await _read_bounded(f)
+        data = _read_bounded(f)
         try:
             text = parse_upload(f.filename or "cv.txt", data)
         except UnsupportedUpload as e:
@@ -65,28 +75,29 @@ async def upload_candidates(job_id: str, files: list[UploadFile] = File(...), db
         db.refresh(cand)
         index_candidate(db, cand)
         ids.append(cand.id)
-    return {"candidate_ids": ids}
+    return UploadOut(candidate_ids=ids)
 
 
-@router.post("/jobs/{job_id}/screen")
-def screen(job_id: str, db: Session = Depends(get_db)):
+@router.post("/jobs/{job_id}/screen", response_model=ScreenOut)
+def screen(job_id: str, db: DbSession) -> ScreenOut:
     if not db.get(Job, job_id):
         raise HTTPException(404, "job not found")
-    return {"ranking": screen_job(db, job_id)}
+    return ScreenOut(ranking=screen_job(db, job_id))
 
 
 @router.get("/jobs/{job_id}/ranking", response_model=list[RankRow])
-def ranking(job_id: str, db: Session = Depends(get_db)):
+def ranking(job_id: str, db: DbSession) -> list[RankRow]:
     rows = []
     for s in db.query(Score).filter(Score.job_id == job_id).order_by(Score.overall.desc()).all():
         cand = db.get(Candidate, s.candidate_id)
         tags = [t.tag for t in db.query(Tag).filter(Tag.job_id == job_id, Tag.candidate_id == s.candidate_id).all()]
-        rows.append({"candidate_id": s.candidate_id, "name": redact(cand.name if cand else "redacted"), "overall": s.overall, "tags": tags})
+        rows.append(RankRow(candidate_id=s.candidate_id, name=redact(cand.name if cand else "redacted"),
+                            overall=s.overall, tags=tags))
     return rows
 
 
 @router.get("/candidates/{candidate_id}", response_model=CandidateDetail)
-def candidate_detail(candidate_id: str, db: Session = Depends(get_db)):
+def candidate_detail(candidate_id: str, db: DbSession) -> CandidateDetail:
     cand = db.get(Candidate, candidate_id)
     if not cand:
         raise HTTPException(404, "candidate not found")
@@ -96,19 +107,19 @@ def candidate_detail(candidate_id: str, db: Session = Depends(get_db)):
     if s:
         ev = [{"requirement_id": e.get("requirement_id", ""), "quote": redact(e.get("quote", ""), cand.name), "sub": e.get("sub", "")} for e in (s.evidence or [])]
         score = {"overall": s.overall, "subs": s.subs, "evidence": ev, "tags": tags}
-    return {"candidate_id": cand.id, "name": redact(cand.name, cand.name),
-            "filename": _display_filename(cand.filename, cand.id), "score": score}
+    return CandidateDetail(candidate_id=cand.id, name=redact(cand.name, cand.name),
+                           filename=_display_filename(cand.filename, cand.id), score=score)
 
 
-@router.post("/candidates/{candidate_id}/schedule")
-def schedule_stub(candidate_id: str, slot: str, db: Session = Depends(get_db)):
+@router.post("/candidates/{candidate_id}/schedule", response_model=ScheduleOut)
+def schedule_stub(candidate_id: str, slot: str, db: DbSession) -> ScheduleOut:
     cand = db.get(Candidate, candidate_id)
     if not cand:
         raise HTTPException(404, "candidate not found")
     row = InterviewStub(job_id=cand.job_id, candidate_id=candidate_id, slot=slot)
     db.add(row)
     db.commit()
-    return {"ok": True, "slot": slot}
+    return ScheduleOut(ok=True, slot=slot)
 
 
 @router.get("/eval")

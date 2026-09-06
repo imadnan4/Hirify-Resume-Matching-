@@ -7,9 +7,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "backend"))
 
-from app.services.llm import score_with_llm  # noqa: E402
-from app.services.redact import redact  # noqa: E402
-from app.services.scoring import apply_rubric  # noqa: E402
+from app.services.llm import score_with_llm
+from app.services.redact import redact
+from app.services.scoring import apply_rubric
 
 
 def precision_at_k(ranked: list[str], relevant: set[str], k: int) -> float:

@@ -4,6 +4,7 @@ No key (CI) -> deterministic fixture scorer so tests never need secrets.
 """
 import json
 import os
+import sys
 from pathlib import Path
 
 SYSTEM = (Path(__file__).resolve().parents[3] / "prompts" / "screen_system.md").read_text() if (
@@ -59,10 +60,11 @@ def score_with_llm(jd_reqs: list[str], cv_context: str) -> dict:
             model=os.getenv("QWEN_MODEL", "qwen/qwen3.8-max:free"),
             messages=messages, tools=[SCORE_TOOL], tool_choice="auto", temperature=0,
         ).choices[0].message
-        if msg.tool_calls:
-            return _validated(json.loads(msg.tool_calls[0].function.arguments), jd_reqs, cv_context)
-    except Exception:
-        pass
+    except Exception as e:  # noqa: BLE001 — third-party gateway failure modes are unknown; JSON fallback follows
+        print(f"llm: tools call failed ({e}); trying JSON fallback", file=sys.stderr)
+        msg = None
+    if msg is not None and msg.tool_calls:
+        return _validated(json.loads(msg.tool_calls[0].function.arguments), jd_reqs, cv_context)
     try:
         txt = client.chat.completions.create(
             model=os.getenv("QWEN_MODEL", "qwen/qwen3.8-max:free"),
@@ -70,7 +72,8 @@ def score_with_llm(jd_reqs: list[str], cv_context: str) -> dict:
             response_format={"type": "json_object"}, temperature=0,
         ).choices[0].message.content or "{}"
         return _validated(json.loads(txt), jd_reqs, cv_context)
-    except Exception:
+    except Exception as e:  # noqa: BLE001 — any gateway/parse failure degrades to the deterministic fixture
+        print(f"llm: JSON fallback failed ({e}); using fixture scorer", file=sys.stderr)
         return _fixture(jd_reqs, cv_context)
 
 
