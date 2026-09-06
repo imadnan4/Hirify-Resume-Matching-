@@ -1,0 +1,4 @@
+Experience:
+6 month data internship. Python pandas notebooks. SQL queries on Postgres. Statistics coursework.
+Education:
+BSc Math

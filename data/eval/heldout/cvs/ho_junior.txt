@@ -1,0 +1,4 @@
+Experience:
+1 yr FastAPI developer. Postgres basics. Learning Docker and CI.
+Education:
+BSc CS

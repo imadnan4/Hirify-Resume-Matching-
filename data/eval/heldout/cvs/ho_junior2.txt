@@ -1,0 +1,4 @@
+Experience:
+FastAPI freelancer 1 yr. Postgres on side projects.
+Education:
+BSc CS

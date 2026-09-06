@@ -1,0 +1,4 @@
+Experience:
+Django developer 5 yrs, small FastAPI service. Postgres daily, no Docker.
+Education:
+BSc CS

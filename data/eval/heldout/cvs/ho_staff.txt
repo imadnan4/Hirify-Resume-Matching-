@@ -1,0 +1,4 @@
+Experience:
+Principal engineer, 8 yrs FastAPI at Globex. Postgres in production at scale. Docker, CI ownership.
+Education:
+MSc CS

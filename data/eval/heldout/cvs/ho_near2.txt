@@ -1,0 +1,4 @@
+Experience:
+Node.js backend 3 yrs. Started learning FastAPI. MongoDB.
+Education:
+BSc CS

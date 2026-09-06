@@ -1,0 +1,4 @@
+Experience:
+1 yr FastAPI at a startup. Postgres basics, learning Docker.
+Education:
+BSc CS
