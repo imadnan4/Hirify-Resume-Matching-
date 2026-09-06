@@ -1,0 +1,4 @@
+Experience:
+3 months FastAPI bootcamp graduate. SQLite only.
+Education:
+BSc CS

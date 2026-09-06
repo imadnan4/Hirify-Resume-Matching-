@@ -1,0 +1,4 @@
+Frontend Engineer (React)
+REQ-1: 2+ yrs React
+REQ-2: Tailwind in production
+REQ-3: REST API integration

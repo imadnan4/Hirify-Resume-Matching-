@@ -1,0 +1,4 @@
+Experience:
+1 yr React internship. Tailwind basics, fetched REST endpoints.
+Education:
+BSc CS

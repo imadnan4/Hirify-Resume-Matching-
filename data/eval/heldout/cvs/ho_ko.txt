@@ -1,0 +1,4 @@
+Experience:
+QA tester manual, 2 yrs. No FastAPI, no Postgres.
+Education:
+BSc CS

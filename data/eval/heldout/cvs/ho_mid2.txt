@@ -1,0 +1,4 @@
+Experience:
+Backend engineer, 3 yrs FastAPI at Initech. Postgres daily, Docker.
+Education:
+BSc CS

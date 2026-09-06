@@ -1,0 +1,4 @@
+Experience:
+Backend engineer, 3 yrs FastAPI at Beta. Postgres daily. Docker compose, CI pipelines.
+Education:
+BSc CS

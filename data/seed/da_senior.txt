@@ -1,0 +1,4 @@
+Experience:
+Data analyst, 4 yrs Python pandas at Acme. Complex SQL queries, window functions. A/B testing statistics.
+Education:
+MSc Statistics

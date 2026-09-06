@@ -1,0 +1,4 @@
+Experience:
+Backend engineer 4 yrs, built one React dashboard. Bootstrap, not Tailwind. REST API design.
+Education:
+BSc CS

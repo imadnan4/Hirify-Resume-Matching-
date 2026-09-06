@@ -1,0 +1,4 @@
+Junior Data Analyst
+REQ-1: Python pandas
+REQ-2: SQL queries
+REQ-3: statistics basics

@@ -1,24 +1,36 @@
 {
  "ranked": [
-  "senior_fastapi",
-  "junior_fastapi",
-  "designer_ko"
+  "ho_junior",
+  "ho_mid",
+  "ho_mid2",
+  "ho_near",
+  "ho_staff",
+  "ho_junior2",
+  "ho_ko",
+  "ho_near2",
+  "ho_wrong"
  ],
  "scores": {
-  "senior_fastapi": 87.5,
-  "junior_fastapi": 66.2,
-  "designer_ko": 23.8
+  "ho_junior": 87.5,
+  "ho_mid": 87.5,
+  "ho_mid2": 87.5,
+  "ho_near": 87.5,
+  "ho_staff": 87.5,
+  "ho_junior2": 66.2,
+  "ho_ko": 66.2,
+  "ho_near2": 45.0,
+  "ho_wrong": 8.5
  },
- "precision@3": 0.333,
- "ndcg@5": 1.0,
- "spearman": 1.0,
+ "precision@3": 0.667,
+ "ndcg@5": 0.694,
+ "spearman": 0.733,
  "faithfulness": {
   "uncited_claims": 0,
-  "total_claims": 8
+  "total_claims": 28
  },
  "pass_bar": {
   "ndcg@5_bar": 0.75,
   "zero_uncited": true
  },
- "pass": true
+ "pass": false
 }

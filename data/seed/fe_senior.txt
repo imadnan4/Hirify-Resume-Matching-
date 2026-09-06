@@ -1,0 +1,4 @@
+Experience:
+Senior frontend engineer, 5 yrs React at Acme. Tailwind in production, design tokens. REST API integration daily.
+Education:
+BSc CS

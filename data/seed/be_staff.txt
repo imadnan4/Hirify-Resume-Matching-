@@ -1,0 +1,4 @@
+Experience:
+Staff backend engineer, 7 yrs FastAPI at Acme. Postgres in production, query tuning. Docker, GitHub Actions CI.
+Education:
+MSc CS

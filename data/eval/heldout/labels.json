@@ -1,7 +1,13 @@
 {
  "grades": {
-  "senior_fastapi": 5,
-  "junior_fastapi": 3,
-  "designer_ko": 1
+  "ho_staff": 5,
+  "ho_mid": 4,
+  "ho_mid2": 4,
+  "ho_junior": 3,
+  "ho_junior2": 3,
+  "ho_near": 2,
+  "ho_near2": 2,
+  "ho_ko": 1,
+  "ho_wrong": 1
  }
 }
