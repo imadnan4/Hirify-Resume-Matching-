@@ -122,6 +122,15 @@ def test_rotate_link_invalidates_old_token(client):
     assert client.post(f"/apply/{new}", data=payload, files=files).status_code == 200
 
 
+def test_public_job_lookup_for_apply_page(client):
+    job = _job(client)
+    body = client.get(f"/apply/{job['apply_token']}/job").json()
+    assert body["title"] == "Backend" and "REQ-1" in body["description"]
+    assert body["status"] == "open"
+    assert "apply_token" not in body
+    assert client.get("/apply/nope-not-a-token/job").status_code == 404
+
+
 def test_org_isolation_between_workspaces(client):
     from app.models.tables import Organization
 
