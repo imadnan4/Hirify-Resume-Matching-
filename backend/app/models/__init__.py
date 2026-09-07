@@ -4,8 +4,9 @@ from app.models.tables import (
     Chunk,
     InterviewStub,
     Job,
+    Organization,
     Score,
     Tag,
 )
 
-__all__ = ["Base", "Candidate", "Chunk", "InterviewStub", "Job", "Score", "Tag"]
+__all__ = ["Base", "Candidate", "Chunk", "InterviewStub", "Job", "Organization", "Score", "Tag"]

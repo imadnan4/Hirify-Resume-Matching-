@@ -14,6 +14,34 @@ class JobCreate(BaseModel):
 class JobOut(BaseModel):
     id: str
     title: str
+    status: str = "open"
+    apply_token: str = ""
+
+
+class JobListRow(BaseModel):
+    id: str
+    title: str
+    status: str = "open"
+    apply_token: str = ""
+    applicant_count: int = 0
+
+
+class JobPatch(BaseModel):
+    status: str = "open"
+
+
+class ApplyOut(BaseModel):
+    applicant_id: str
+
+
+class ApplicantOut(BaseModel):
+    candidate_id: str
+    name: str
+    email: str = ""
+    phone: str = ""
+    filename: str = ""
+    overall: float | None = None
+    tags: list[str] = Field(default_factory=list)
 
 
 class EvidenceItem(BaseModel):
