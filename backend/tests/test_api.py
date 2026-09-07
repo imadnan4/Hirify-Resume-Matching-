@@ -39,7 +39,9 @@ def test_flow_upload_screen_rank_detail(client):
     assert ranking[1]["candidate_id"] == second_id
     rows = client.get(f"/jobs/{job['id']}/ranking").json()
     assert len(rows) == 2
+    assert {r["name"] for r in rows} == {"a", "b"}
     detail = client.get(f"/candidates/{first_id}").json()
+    assert detail["name"] == "a"
     assert detail["score"]["evidence"]
     assert detail["filename"].startswith("cv-")
     sched = client.post(f"/candidates/{first_id}/schedule", params={"slot": "2026-09-10T10:00Z"}).json()

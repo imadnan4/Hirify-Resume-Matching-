@@ -125,7 +125,8 @@ def upload_candidates(job_id: str, db: DbSession, org: CurrentOrg,
             text = parse_upload(f.filename or "cv.txt", data)
         except UnsupportedUpload as e:
             raise HTTPException(400, str(e))
-        cand = Candidate(job_id=job_id, raw_text=text, filename=f.filename or "")
+        cand = Candidate(job_id=job_id, name=Path(f.filename or "cv.txt").stem or "redacted",
+                         raw_text=text, filename=f.filename or "")
         db.add(cand)
         db.commit()
         db.refresh(cand)
@@ -238,7 +239,7 @@ def ranking(job_id: str, db: DbSession, org: CurrentOrg) -> list[RankRow]:
     for s in db.query(Score).filter(Score.job_id == job_id).order_by(Score.overall.desc()).all():
         cand = db.get(Candidate, s.candidate_id)
         tags = [t.tag for t in db.query(Tag).filter(Tag.job_id == job_id, Tag.candidate_id == s.candidate_id).all()]
-        rows.append(RankRow(candidate_id=s.candidate_id, name=redact(cand.name if cand else "redacted"),
+        rows.append(RankRow(candidate_id=s.candidate_id, name=cand.name if cand else "redacted",
                             overall=s.overall, tags=tags))
     return rows
 
@@ -252,7 +253,7 @@ def candidate_detail(candidate_id: str, db: DbSession, org: CurrentOrg) -> Candi
     if s:
         ev = [{"requirement_id": e.get("requirement_id", ""), "quote": redact(e.get("quote", ""), cand.name), "sub": e.get("sub", "")} for e in (s.evidence or [])]
         score = {"overall": s.overall, "subs": s.subs, "evidence": ev, "tags": tags}
-    return CandidateDetail(candidate_id=cand.id, name=redact(cand.name, cand.name),
+    return CandidateDetail(candidate_id=cand.id, name=cand.name,
                            filename=_display_filename(cand.filename, cand.id), score=score)
 
 
