@@ -88,3 +88,24 @@ class ScreenOut(BaseModel):
 class ScheduleOut(BaseModel):
     ok: bool = True
     slot: str
+
+
+class RunCreate(BaseModel):
+    candidate_ids: list[str] = Field(default_factory=list)
+    all: bool = False
+
+
+class RunOut(BaseModel):
+    run_id: str
+    status: str = "queued"
+    total: int = 0
+
+
+class RunDetail(BaseModel):
+    run_id: str
+    job_id: str
+    status: str = "queued"
+    total: int = 0
+    done: int = 0
+    failed: int = 0
+    error: str = ""

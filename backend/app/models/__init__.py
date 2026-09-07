@@ -6,7 +6,8 @@ from app.models.tables import (
     Job,
     Organization,
     Score,
+    ScreeningRun,
     Tag,
 )
 
-__all__ = ["Base", "Candidate", "Chunk", "InterviewStub", "Job", "Organization", "Score", "Tag"]
+__all__ = ["Base", "Candidate", "Chunk", "InterviewStub", "Job", "Organization", "Score", "ScreeningRun", "Tag"]

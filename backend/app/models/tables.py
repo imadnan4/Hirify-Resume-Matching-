@@ -88,3 +88,17 @@ class InterviewStub(Base):
     job_id: Mapped[str] = mapped_column(String(12), ForeignKey("jobs.id", ondelete="CASCADE"), index=True)
     candidate_id: Mapped[str] = mapped_column(String(12), ForeignKey("candidates.id", ondelete="CASCADE"), index=True)
     slot: Mapped[str] = mapped_column(String(120))
+
+
+class ScreeningRun(Base):
+    """Queued screening over a snapshot of candidate ids. Status: queued|running|done."""
+
+    __tablename__ = "screening_runs"
+    id: Mapped[str] = mapped_column(String(12), primary_key=True, default=_uid)
+    job_id: Mapped[str] = mapped_column(String(12), ForeignKey("jobs.id", ondelete="CASCADE"), index=True)
+    status: Mapped[str] = mapped_column(String(16), default="queued", index=True)
+    candidate_ids: Mapped[list] = mapped_column(JSON, default=list)
+    done_ids: Mapped[list] = mapped_column(JSON, default=list)
+    failed_ids: Mapped[list] = mapped_column(JSON, default=list)
+    error: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())

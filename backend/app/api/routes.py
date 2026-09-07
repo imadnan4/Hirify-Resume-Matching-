@@ -10,7 +10,7 @@ from sqlalchemy import func
 
 from app.api.deps import CurrentOrg, DbSession
 from app.api.rate_limit import check_rate_limit
-from app.models.tables import Candidate, InterviewStub, Job, Score, Tag
+from app.models.tables import Candidate, InterviewStub, Job, Score, ScreeningRun, Tag
 from app.schemas.io import (
     ApplicantOut,
     ApplyOut,
@@ -20,6 +20,9 @@ from app.schemas.io import (
     JobOut,
     JobPatch,
     RankRow,
+    RunCreate,
+    RunDetail,
+    RunOut,
     ScheduleOut,
     ScreenOut,
     UploadOut,
@@ -27,6 +30,7 @@ from app.schemas.io import (
 from app.services.parser import UnsupportedUpload, parse_upload
 from app.services.pipeline import index_candidate, index_job, screen_job
 from app.services.redact import redact
+from app.services.runner import create_run, get_run
 
 router = APIRouter(tags=["screening"])
 
@@ -184,6 +188,38 @@ def apply_for_job(token: str, request: Request, db: DbSession,
 def screen(job_id: str, db: DbSession, org: CurrentOrg) -> ScreenOut:
     _job_in_org(db, org, job_id)
     return ScreenOut(ranking=screen_job(db, job_id))
+
+
+@router.post("/jobs/{job_id}/runs", response_model=RunOut)
+def create_screening_run(job_id: str, body: RunCreate, db: DbSession, org: CurrentOrg) -> RunOut:
+    _job_in_org(db, org, job_id)
+    if body.all:
+        ids = [c.id for c in db.query(Candidate).filter(Candidate.job_id == job_id).all()]
+    else:
+        ids = list(body.candidate_ids)
+        known = {c.id for c in db.query(Candidate).filter(Candidate.job_id == job_id).all()}
+        unknown = [i for i in ids if i not in known]
+        if unknown:
+            raise HTTPException(422, f"unknown candidates for this job: {unknown}")
+    run = create_run(db, job_id, ids)
+    return RunOut(run_id=run.id, status=run.status, total=len(ids))
+
+
+@router.get("/jobs/{job_id}/runs", response_model=list[RunDetail])
+def list_runs(job_id: str, db: DbSession, org: CurrentOrg) -> list[RunDetail]:
+    _job_in_org(db, org, job_id)
+    runs = db.query(ScreeningRun).filter(ScreeningRun.job_id == job_id).order_by(ScreeningRun.created_at.desc()).all()
+    return [RunDetail(run_id=r.id, job_id=r.job_id, status=r.status, total=len(r.candidate_ids),
+                      done=len(r.done_ids), failed=len(r.failed_ids), error=r.error) for r in runs]
+
+
+@router.get("/runs/{run_id}", response_model=RunDetail)
+def run_detail(run_id: str, db: DbSession, org: CurrentOrg) -> RunDetail:
+    run = db.get(ScreeningRun, run_id)
+    if not run:
+        raise HTTPException(404, "run not found")
+    _job_in_org(db, org, run.job_id)
+    return RunDetail(**get_run(db, run_id))
 
 
 @router.get("/jobs/{job_id}/ranking", response_model=list[RankRow])

@@ -30,7 +30,7 @@ def index_candidate(db: Session, cand: Candidate) -> None:
     db.commit()
 
 
-def _topk(chunks: list[Chunk], job_vecs: list[list[float]], k: int = TOP_K) -> list[Chunk]:
+def topk_chunks(chunks: list[Chunk], job_vecs: list[list[float]], k: int = TOP_K) -> list[Chunk]:
     if not chunks or not all(c.embedding for c in chunks) or not job_vecs:
         return chunks[:k]
     qv = [sum(col) / len(job_vecs) for col in zip(*job_vecs)]
@@ -38,29 +38,41 @@ def _topk(chunks: list[Chunk], job_vecs: list[list[float]], k: int = TOP_K) -> l
     return scored[:k]
 
 
-def screen_job(db: Session, job_id: str) -> list[dict]:
+def load_screening_context(db: Session, job_id: str):
+    """Batch-load once per run: requirement texts, job vectors, chunks by candidate."""
     job = db.get(Job, job_id)
-    # Batch-load once: job requirement chunks + all candidate chunks grouped in memory.
     job_chunks = db.query(Chunk).filter(
         Chunk.job_id == job_id, Chunk.candidate_id == f"job:{job_id}").all()
-    reqs = [c.text for c in job_chunks] or [job.description]
+    reqs = [c.text for c in job_chunks] or ([job.description] if job else [])
     job_vecs = [c.embedding for c in job_chunks if c.embedding]
     by_cand: dict[str, list[Chunk]] = {}
     for c in db.query(Chunk).filter(
             Chunk.job_id == job_id, Chunk.candidate_id != f"job:{job_id}").all():
         by_cand.setdefault(c.candidate_id, []).append(c)
+    return reqs, job_vecs, by_cand
+
+
+def score_one(db: Session, job_id: str, cand: Candidate, reqs: list[str],
+              job_vecs: list[list[float]], chunks: list[Chunk]) -> dict:
+    ctx = redact("\n---\n".join(c.text for c in topk_chunks(chunks, job_vecs)) or cand.raw_text[:4000], cand.name)
+    final = apply_rubric(score_with_llm(reqs, ctx))
+    persist_score(db, job_id, cand.id, final)
+    return {"candidate_id": cand.id, "overall": final["overall"], "tags": final["tags"]}
+
+
+def persist_score(db: Session, job_id: str, candidate_id: str, final: dict) -> None:
+    db.query(Score).filter(Score.job_id == job_id, Score.candidate_id == candidate_id).delete()
+    db.query(Tag).filter(Tag.job_id == job_id, Tag.candidate_id == candidate_id).delete()
+    db.add(Score(job_id=job_id, candidate_id=candidate_id, overall=final["overall"],
+                 subs=final["subs"], evidence=final["evidence"]))
+    for t in final["tags"]:
+        db.add(Tag(job_id=job_id, candidate_id=candidate_id, tag=t))
+
+
+def screen_job(db: Session, job_id: str) -> list[dict]:
+    reqs, job_vecs, by_cand = load_screening_context(db, job_id)
     ranking = []
     for cand in db.query(Candidate).filter(Candidate.job_id == job_id).all():
-        ctx_chunks = _topk(by_cand.get(cand.id, []), job_vecs)
-        ctx = redact("\n---\n".join(c.text for c in ctx_chunks) or cand.raw_text[:4000], cand.name)
-        raw = score_with_llm(reqs, ctx)
-        final = apply_rubric(raw)
-        db.query(Score).filter(Score.job_id == job_id, Score.candidate_id == cand.id).delete()
-        db.query(Tag).filter(Tag.job_id == job_id, Tag.candidate_id == cand.id).delete()
-        db.add(Score(job_id=job_id, candidate_id=cand.id, overall=final["overall"],
-                     subs=final["subs"], evidence=final["evidence"]))
-        for t in final["tags"]:
-            db.add(Tag(job_id=job_id, candidate_id=cand.id, tag=t))
-        ranking.append({"candidate_id": cand.id, "overall": final["overall"], "tags": final["tags"]})
+        ranking.append(score_one(db, job_id, cand, reqs, job_vecs, by_cand.get(cand.id, [])))
     db.commit()
     return sorted(ranking, key=lambda r: -r["overall"])
