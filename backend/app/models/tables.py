@@ -14,11 +14,28 @@ def _uid() -> str:
     return uuid.uuid4().hex[:12]
 
 
+def _token() -> str:
+    import secrets
+
+    return secrets.token_urlsafe(24)
+
+
+class Organization(Base):
+    """Workspace boundary. Resolved by get_current_org; Google login swaps the resolver later."""
+
+    __tablename__ = "organizations"
+    id: Mapped[str] = mapped_column(String(12), primary_key=True, default=_uid)
+    name: Mapped[str] = mapped_column(String(200), default="Default workspace")
+
+
 class Job(Base):
     __tablename__ = "jobs"
     id: Mapped[str] = mapped_column(String(12), primary_key=True, default=_uid)
+    org_id: Mapped[str] = mapped_column(String(12), ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
     title: Mapped[str] = mapped_column(String(200), index=True)
     description: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(16), default="open", index=True)
+    apply_token: Mapped[str] = mapped_column(String(64), unique=True, index=True, default=_token)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 
@@ -27,6 +44,8 @@ class Candidate(Base):
     id: Mapped[str] = mapped_column(String(12), primary_key=True, default=_uid)
     job_id: Mapped[str] = mapped_column(String(12), ForeignKey("jobs.id", ondelete="CASCADE"), index=True)
     name: Mapped[str] = mapped_column(String(200), default="redacted")
+    email: Mapped[str] = mapped_column(String(320), default="")
+    phone: Mapped[str] = mapped_column(String(64), default="")
     raw_text: Mapped[str] = mapped_column(Text)
     filename: Mapped[str] = mapped_column(String(300), default="")
 
@@ -69,3 +88,17 @@ class InterviewStub(Base):
     job_id: Mapped[str] = mapped_column(String(12), ForeignKey("jobs.id", ondelete="CASCADE"), index=True)
     candidate_id: Mapped[str] = mapped_column(String(12), ForeignKey("candidates.id", ondelete="CASCADE"), index=True)
     slot: Mapped[str] = mapped_column(String(120))
+
+
+class ScreeningRun(Base):
+    """Queued screening over a snapshot of candidate ids. Status: queued|running|done."""
+
+    __tablename__ = "screening_runs"
+    id: Mapped[str] = mapped_column(String(12), primary_key=True, default=_uid)
+    job_id: Mapped[str] = mapped_column(String(12), ForeignKey("jobs.id", ondelete="CASCADE"), index=True)
+    status: Mapped[str] = mapped_column(String(16), default="queued", index=True)
+    candidate_ids: Mapped[list] = mapped_column(JSON, default=list)
+    done_ids: Mapped[list] = mapped_column(JSON, default=list)
+    failed_ids: Mapped[list] = mapped_column(JSON, default=list)
+    error: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
