@@ -156,7 +156,8 @@ def public_job(token: str, db: DbSession) -> dict:
     return {"title": job.title, "description": job.description, "status": job.status}
 
 
-@router.post("/apply/{token}", response_model=ApplyOut)def apply_for_job(token: str, request: Request, db: DbSession,
+@router.post("/apply/{token}", response_model=ApplyOut)
+def apply_for_job(token: str, request: Request, db: DbSession,
                   full_name: Annotated[str, Form()], email: Annotated[str, Form()],
                   phone: Annotated[str, Form()] = "",
                   cv: UploadFile = File(...)) -> ApplyOut:  # noqa: B008 — idiomatic FastAPI
